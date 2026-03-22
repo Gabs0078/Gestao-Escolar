@@ -1,0 +1,192 @@
+================================================================================
+  GESTÃO ESCOLAR — Projeto acadêmico (Node + React + Docker)
+================================================================================
+
+SOBRE O PROJETO
+---------------
+Sistema web simples de gestão escolar, desenvolvido como trabalho de faculdade.
+Permite cadastrar alunos, cursos e matrículas (vínculo entre aluno e curso, com
+nota opcional). O backend expõe uma API REST; o frontend é uma página React com
+abas para cada módulo.
+
+Objetivos principais:
+  • Três CRUDs completos (criar, listar, editar e excluir)
+  • Validação de dados no servidor (e-mail, campos obrigatórios, CPF brasileiro)
+  • Interface em React para consumir a API
+  • Ambiente de execução com Docker (banco, API e interface)
+
+
+TECNOLOGIAS
+-----------
+Backend:
+  • Node.js (ES modules)
+  • Express — rotas HTTP
+  • Sequelize — ORM e PostgreSQL
+  • express-validator — validação de requisições
+  • CORS — acesso do navegador à API
+
+Frontend:
+  • React 18
+  • Vite — build e dev server
+
+Infraestrutura:
+  • Docker e Docker Compose
+  • PostgreSQL 16 (container)
+  • Nginx (container) para servir o build estático do React
+
+
+O QUE O SISTEMA FAZ (MÓDULOS)
+-----------------------------
+1) Alunos
+   Campos: nome, e-mail, telefone, CPF.
+   Validações: nada em branco, e-mail no formato válido, CPF com dígitos
+   verificadores (não aceita CPF com todos os dígitos iguais).
+
+2) Cursos
+   Campos: nome, código único, carga horária (número inteiro positivo).
+   Validações: campos obrigatórios e carga horária numérica.
+
+3) Matrículas
+   Liga um aluno a um curso. Pode incluir nota (0 a 10) ou deixar em branco.
+   Não é permitido matricular o mesmo aluno duas vezes no mesmo curso.
+
+
+REQUISITOS PARA RODAR
+---------------------
+Obrigatório para rodar com Docker (recomendado):
+  • Docker instalado
+  • Docker Compose (geralmente vem com o Docker Desktop ou no pacote docker-compose)
+
+Opcional — desenvolvimento local sem Docker:
+  • Node.js 20 (ou compatível)
+  • npm
+  • PostgreSQL acessível (você mesmo cria o banco e usuário ou usa o mesmo
+    esquema: app / app / escola)
+
+
+COMO UTILIZAR (DOCKER)
+----------------------
+1. Abra um terminal na pasta raiz do projeto (onde está o arquivo docker-compose.yml).
+
+2. Suba os serviços:
+     docker compose up --build
+
+   Na primeira vez, o build pode levar alguns minutos.
+
+3. Acesse no navegador:
+     • Interface:  http://localhost:5173
+     O JavaScript chama a API em /api/... no MESMO endereço (porta 5173). O Nginx
+     dentro do container do frontend repassa essas requisições ao backend — assim
+     não há chamada direta à porta 3001 pelo navegador e evita-se o erro
+     "NetworkError" por bloqueio ou backend inacessível em outra porta.
+     • Teste da API (qualquer um dos dois):
+         http://localhost:5173/api/health
+         http://localhost:3001/api/health
+     (deve retornar JSON com "ok": true)
+
+4. O banco PostgreSQL fica exposto na porta 5432 do computador (usuário/senha/
+   banco padrão: app / app / escola), útil para ferramentas como DBeaver ou psql.
+
+5. Para parar: Ctrl+C no terminal, ou em outro terminal:
+     docker compose down
+
+   Para apagar também os dados do banco (volume):
+     docker compose down -v
+
+
+VARIÁVEIS DE AMBIENTE (Docker)
+------------------------------
+O compose já define:
+  • DATABASE_URL no backend (conexão com o Postgres interno)
+  • PORT no backend: 3001
+  • O frontend é buildado sem URL fixa da API: as requisições são relativas
+    (/api/...). O Nginx encaminha para o serviço "backend" na rede Docker.
+
+
+DESENVOLVIMENTO LOCAL (SEM DOCKER)
+-----------------------------------
+1. Crie um banco PostgreSQL e ajuste a URL, por exemplo:
+     export DATABASE_URL="postgres://usuario:senha@localhost:5432/escola"
+
+2. Backend:
+     cd backend
+     npm install
+     npm start
+   A API sobe em http://localhost:3001 (por padrão).
+
+3. Frontend (outro terminal):
+     cd frontend
+     npm install
+     npm run dev
+   O Vite costuma usar http://localhost:5173 e o proxy envia /api para a porta
+   3001 (veja vite.config.js).
+
+4. Para gerar build de produção do frontend:
+     cd frontend
+     npm run build
+   A pasta dist/ contém os arquivos estáticos.
+
+
+ESTRUTURA DE PASTAS (RESUMO)
+----------------------------
+projetos/
+  docker-compose.yml    — orquestra db, backend e frontend
+  backend/
+    Dockerfile
+    package.json
+    src/
+      index.js          — servidor Express, sync do banco e rotas
+      db.js             — conexão Sequelize
+      models/           — modelos Aluno, Curso, Matrícula
+      routes/           — CRUDs por recurso
+      utils/cpf.js      — validação de CPF no servidor
+  frontend/
+    Dockerfile
+    nginx.conf          — SPA + proxy de /api para o backend
+    vite.config.js
+    src/
+      App.jsx           — telas e formulários
+      api.js            — chamadas HTTP
+      validate.js       — CPF no cliente (opcional, UX)
+
+
+API (ENDPOINTS PRINCIPAIS)
+--------------------------
+Base no navegador (recomendado com Docker): http://localhost:5173
+Base direta no backend: http://localhost:3001
+(os dois caminhos são o mesmo prefixo /api/...)
+
+  GET    /api/health
+  GET    /api/students
+  POST   /api/students
+  GET    /api/students/:id
+  PUT    /api/students/:id
+  DELETE /api/students/:id
+
+  GET    /api/courses
+  POST   /api/courses
+  (idem para PUT e DELETE com /api/courses/:id)
+
+  GET    /api/enrollments
+  POST   /api/enrollments
+  (idem para PUT e DELETE com /api/enrollments/:id)
+
+Corpo das requisições em JSON (Content-Type: application/json).
+
+
+DICAS PARA APRESENTAR NA FACULDADE
+----------------------------------
+  • Explicar os três CRUDs e a relação N:N (aluno–curso) via matrícula.
+  • Mostrar validação de CPF inválido e e-mail inválido na API.
+  • Mostrar o docker-compose subindo tudo com um comando.
+  • Se usar um CPF de teste, use um CPF válido (por exemplo de gerador de CPF
+    para testes); sequências como 111.111.111-11 são rejeitadas pelo algoritmo.
+
+
+AUTOR / OBSERVAÇÃO
+------------------
+Projeto educacional; não use credenciais reais em produção. Troque usuário e
+senha do Postgres se for expor a aplicação na internet.
+
+================================================================================
+Fim do documento
